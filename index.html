@@ -1,1 +1,164 @@
-<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#15151e"><link rel="manifest" href="manifest.webmanifest"><title>Shechter Studio PRO</title><style>body{margin:0;background:#101018;color:white;font:16px Arial,sans-serif}header{padding:18px;background:#20202c;font-weight:bold;text-align:center}main{max-width:800px;margin:auto;padding:16px}.panel{background:#20202c;border-radius:15px;padding:15px;margin:12px 0}video{width:100%;max-height:55vh;background:black}button,input{font:inherit}button{background:#8b5cf6;border:0;color:white;border-radius:9px;padding:10px;margin:4px}input[type=text]{padding:10px;width:85%;border-radius:8px}label{display:block;margin:10px 0}.preview{position:relative;background:black}.caption{position:absolute;bottom:14%;left:5%;right:5%;text-align:center;font-weight:bold;text-shadow:0 2px 5px black;pointer-events:none;white-space:pre-wrap}.small{color:#bcbcca;font-size:13px}</style></head><body><header>🎬 Shechter Studio PRO</header><main><div class="panel"><label>בחר סרטון מהטלפון <input id="file" type="file" accept="video/*"></label><div class="preview"><video id="video" controls playsinline></video><div class="caption" id="caption"></div></div></div><div class="panel"><h3>מלל בעברית</h3><input id="text" type="text" placeholder="כתוב כותרת לסרטון"><label>גודל טקסט <input id="size" type="range" min="16" max="64" value="32"></label><label>צבע <input id="color" type="color" value="#ffffff"></label><label>מיקום <select id="position"><option value="14%">למטה</option><option value="45%">באמצע</option><option value="78%">למעלה</option></select></label></div><div class="panel"><h3>חיתוך ותצוגה</h3><label>התחלה (שניות) <input id="start" type="number" min="0" value="0" step="0.1"></label><label>סיום (שניות, 0 = סוף הסרטון) <input id="end" type="number" min="0" value="0" step="0.1"></label><button id="play">נגן קטע</button><button id="save">שמור הגדרות פרויקט</button><p class="small">גרסת התחלה: תצוגת מלל וחיתוך לניגון בלבד. ייצוא MP4, שכבות וכתוביות אוטומטיות עדיין אינם זמינים.</p></div></main><script>const $=id=>document.getElementById(id),v=$('video');let url; $('file').onchange=e=>{const f=e.target.files[0];if(!f)return;if(url)URL.revokeObjectURL(url);url=URL.createObjectURL(f);v.src=url};function update(){let c=$('caption');c.textContent=$('text').value;c.style.fontSize=$('size').value+'px';c.style.color=$('color').value;c.style.bottom=$('position').value}['text','size','color','position'].forEach(id=>$(id).addEventListener('input',update));$('play').onclick=()=>{if(!v.src)return alert('בחר סרטון');let s=Number($('start').value)||0,e=Number($('end').value)||v.duration;if(s>=e)return alert('זמן ההתחלה חייב להיות לפני הסיום');v.currentTime=s;v.play()};v.ontimeupdate=()=>{let e=Number($('end').value);if(e>0&&v.currentTime>=e)v.pause()};$('save').onclick=()=>{let data={text:$('text').value,size:$('size').value,color:$('color').value,position:$('position').value,start:$('start').value,end:$('end').value};let a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}));a.download='shechter-project.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});</script></body></html>
+
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shechter Studio PRO</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#101018;color:white;font-family:Arial,sans-serif}
+header{padding:18px;text-align:center;background:#202033;font-size:22px;font-weight:bold}
+main{max-width:650px;margin:auto;padding:15px}
+section{background:#222232;padding:16px;border-radius:15px;margin-bottom:15px}
+h3{margin:0 0 14px}
+button,select,input{font:inherit}
+button{background:#7455ef;color:white;border:0;border-radius:9px;padding:12px;margin:4px}
+input,select{max-width:100%;padding:10px;margin:6px 0;border-radius:8px}
+input[type=text]{width:100%}
+video{width:100%;height:100%;object-fit:contain}
+#stage{position:relative;background:black;width:100%;aspect-ratio:9/16;max-height:65vh;margin:auto;overflow:hidden}
+#caption{position:absolute;bottom:12%;width:100%;text-align:center;font-weight:bold;overflow-wrap:anywhere;text-shadow:2px 2px 5px black;pointer-events:none}
+label{display:block;margin-top:10px}
+small{color:#bbb}
+</style>
+</head>
+<body>
+<header>🎬 Shechter Studio PRO</header>
+<main>
+<section>
+<h3>העלאת סרטון</h3>
+<input type="file" id="file" accept="video/*">
+<label>יחס מסך</label>
+<select id="ratio">
+<option value="9/16">9:16 סטטוס</option>
+<option value="16/9">16:9 רוחב</option>
+<option value="1/1">1:1 ריבוע</option>
+<option value="4/5">4:5</option>
+<option value="4/3">4:3</option>
+</select>
+<div id="stage">
+<video id="video" controls playsinline></video>
+<div id="caption"></div>
+</div>
+</section>
+<section>
+<h3>כותרות בעברית</h3>
+<input id="words" type="text" placeholder="כתוב כותרת לסרטון">
+<label>גודל טקסט</label>
+<input id="size" type="range" min="18" max="65" value="32">
+<label>צבע טקסט</label>
+<input id="color" type="color" value="#ffffff">
+<label>מיקום</label>
+<select id="position">
+<option value="12%">למטה</option>
+<option value="45%">באמצע</option>
+<option value="78%">למעלה</option>
+</select>
+<label>תחילת הכותרת בשניות</label>
+<input id="textStart" type="number" min="0" value="0">
+<label>סיום הכותרת בשניות</label>
+<input id="textEnd" type="number" min="0" value="5">
+<button id="add">הוסף כותרת לציר הזמן</button>
+<div id="titles"></div>
+</section>
+<section>
+<h3>חיתוך סרטון</h3>
+<label>התחלה בשניות</label>
+<input id="start" type="number" min="0" value="0">
+<label>סיום בשניות (0 = סוף הסרטון)</label>
+<input id="end" type="number" min="0" value="0">
+<button id="preview">נגן את הקטע</button>
+</section>
+<section>
+<h3>מוזיקת רקע</h3>
+<input id="music" type="file" accept="audio/*">
+<audio id="audio" controls></audio>
+</section>
+<section>
+<h3>שמירת הפרויקט</h3>
+<button id="save">שמור הגדרות</button>
+<small>שמירת ההגדרות אינה מייצאת סרטון. ייצוא וידאו יתווסף בשדרוג הבא.</small>
+</section>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let titles=[],url="",audioUrl="";
+const video=$("video");
+$("file").onchange=e=>{
+ if(url)URL.revokeObjectURL(url);
+ const f=e.target.files[0];
+ if(!f)return;
+ url=URL.createObjectURL(f);
+ video.src=url;
+};
+$("ratio").onchange=e=>$("stage").style.aspectRatio=e.target.value;
+$("music").onchange=e=>{
+ if(audioUrl)URL.revokeObjectURL(audioUrl);
+ const f=e.target.files[0];
+ if(!f)return;
+ audioUrl=URL.createObjectURL(f);
+ $("audio").src=audioUrl;
+};
+function update(){
+ const t=video.currentTime;
+ const active=titles.filter(x=>t>=x.start&&t<x.end).at(-1);
+ const c=$("caption");
+ c.textContent=active?active.text:"";
+ if(active){
+ c.style.fontSize=active.size+"px";
+ c.style.color=active.color;
+ c.style.bottom=active.position;
+ }
+}
+video.ontimeupdate=()=>{
+ update();
+ const end=Number($("end").value);
+ if(end>0&&video.currentTime>=end){
+ video.pause();
+ $("audio").pause();
+ }
+};
+$("add").onclick=()=>{
+ const text=$("words").value.trim();
+ const start=Number($("textStart").value);
+ const end=Number($("textEnd").value);
+ if(!text||end<=start){alert("יש להזין כותרת וזמנים תקינים");return}
+ titles.push({
+ text,start,end,
+ size:Number($("size").value),
+ color:$("color").value,
+ position:$("position").value
+ });
+ $("titles").textContent=titles.map(x=>x.start+"–"+x.end+": "+x.text).join(" | ");
+ update();
+};
+$("preview").onclick=async()=>{
+ if(!video.src){alert("בחר סרטון קודם");return}
+ const start=Math.max(0,Number($("start").value)||0);
+ const end=Number($("end").value);
+ if(end>0&&end<=start){alert("זמן הסיום חייב להיות אחרי ההתחלה");return}
+ video.currentTime=start;
+ try{
+ await video.play();
+ if($("audio").src){
+ $("audio").currentTime=0;
+ await $("audio").play();
+ }
+ }catch(e){alert("לא ניתן להתחיל ניגון: "+e.message)}
+};
+$("save").onclick=()=>{
+ const data={
+ ratio:$("ratio").value,titles,
+ start:$("start").value,end:$("end").value
+ };
+ const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="shechter-project.json";
+ a.click();
+ setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+};
+</script>
+</body>
+</html>
