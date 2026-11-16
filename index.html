@@ -162,3 +162,140 @@ $("save").onclick=()=>{
 </script>
 </body>
 </html>
+
+<script>
+(function(){
+const section=document.createElement("section");
+section.innerHTML=`
+<h3>🎬 ייצוא סרטון ערוך</h3>
+<button id="exportVideo">ייצוא והורדת סרטון</button>
+<p id="exportStatus"></p>
+`;
+document.querySelector("main").appendChild(section);
+
+document.getElementById("exportVideo").onclick=async()=>{
+const v=document.getElementById("video");
+const status=document.getElementById("exportStatus");
+const button=document.getElementById("exportVideo");
+
+if(!v.src){
+ alert("יש לבחור סרטון קודם");
+ return;
+}
+if(!window.MediaRecorder){
+ alert("הדפדפן אינו תומך בייצוא");
+ return;
+}
+
+const canvas=document.createElement("canvas");
+const ratio=document.getElementById("ratio").value.split("/");
+const w=720;
+const h=Math.round(w*Number(ratio[1])/Number(ratio[0]));
+canvas.width=w;
+canvas.height=h;
+const ctx=canvas.getContext("2d");
+const stream=canvas.captureStream(30);
+
+const types=[
+"video/mp4",
+"video/webm;codecs=vp9",
+"video/webm;codecs=vp8",
+"video/webm"
+];
+const mime=types.find(t=>MediaRecorder.isTypeSupported(t));
+if(!mime){alert("אין פורמט ייצוא נתמך");return;}
+
+let recorder;
+try{
+recorder=new MediaRecorder(stream,{mimeType:mime});
+}catch(e){alert("שגיאת ייצוא: "+e.message);return;}
+
+const chunks=[];
+recorder.ondataavailable=e=>{
+ if(e.data.size)chunks.push(e.data);
+};
+recorder.onstop=()=>{
+ const blob=new Blob(chunks,{type:mime});
+ const a=document.createElement("a");
+ a.href=URL.createObjectURL(blob);
+ a.download="Shechter-Studio-PRO."+
+ (mime.includes("mp4")?"mp4":"webm");
+ a.click();
+ setTimeout(()=>URL.revokeObjectURL(a.href),30000);
+ status.textContent="הייצוא הסתיים";
+ button.disabled=false;
+};
+
+const start=Math.max(0,Number(document.getElementById("start").value)||0);
+const requestedEnd=Number(document.getElementById("end").value);
+const end=requestedEnd>start?Math.min(requestedEnd,v.duration):v.duration;
+if(!Number.isFinite(end)||end<=start){
+ alert("זמני הסרטון אינם תקינים");
+ return;
+}
+
+button.disabled=true;
+status.textContent="מכין את הסרטון...";
+v.pause();
+v.currentTime=start;
+await new Promise(resolve=>{
+ if(Math.abs(v.currentTime-start)<0.1)return resolve();
+ v.addEventListener("seeked",resolve,{once:true});
+});
+
+let stopped=false;
+let frameId;
+function draw(){
+ if(stopped)return;
+ ctx.fillStyle="black";
+ ctx.fillRect(0,0,w,h);
+ if(v.readyState>=2){
+ const scale=Math.min(w/v.videoWidth,h/v.videoHeight);
+ const vw=v.videoWidth*scale;
+ const vh=v.videoHeight*scale;
+ ctx.drawImage(v,(w-vw)/2,(h-vh)/2,vw,vh);
+ }
+ const active=titles.filter(x=>
+ v.currentTime>=x.start&&v.currentTime<x.end
+ ).at(-1);
+ if(active){
+ ctx.fillStyle=active.color;
+ ctx.font="bold "+Math.round(active.size*w/360)+"px Arial";
+ ctx.textAlign="center";
+ ctx.textBaseline="middle";
+ ctx.shadowColor="black";
+ ctx.shadowBlur=7;
+ const y=h*(1-parseFloat(active.position)/100);
+ ctx.fillText(active.text,w/2,y,w*0.9);
+ ctx.shadowBlur=0;
+ }
+ if(v.currentTime>=end||v.ended){
+ finish();
+ return;
+ }
+ frameId=requestAnimationFrame(draw);
+}
+function finish(){
+ if(stopped)return;
+ stopped=true;
+ cancelAnimationFrame(frameId);
+ v.pause();
+ if(recorder.state!=="inactive")recorder.stop();
+}
+recorder.onerror=()=>{
+ status.textContent="אירעה שגיאה בהקלטה";
+ button.disabled=false;
+ finish();
+};
+try{
+ recorder.start(1000);
+ await v.play();
+ draw();
+ status.textContent="מייצא סרטון... אין לסגור את הדף";
+}catch(e){
+ finish();
+ status.textContent="שגיאה: "+e.message;
+}
+};
+})();
+</script>
